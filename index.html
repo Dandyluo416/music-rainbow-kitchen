@@ -151,7 +151,7 @@ function render(answer){const key=answer.join(',');if(cache.has(key))return cach
   alterations.set(p.key,p.sharp);return note;});
  const voice=new Voice({num_beats:answer.length,beat_value:4}).addTickables(notes);
  new Formatter().joinVoices([voice]).formatToStave([voice],stave);voice.draw(context,stave);
- const svg=host.querySelector('svg');svg.setAttribute('viewBox',`0 25 ${width} 130`);svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.setAttribute('role','img');svg.setAttribute('aria-label','高音譜號食譜，依序辨認四分音符的音高');svg.setAttribute('data-notation-engine','VexFlow 4.2.5');svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+ const svg=host.querySelector('svg');svg.removeAttribute('style');svg.setAttribute('viewBox',`0 25 ${width} 130`);svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.setAttribute('role','img');svg.setAttribute('aria-label','高音譜號食譜，依序辨認四分音符的音高');svg.setAttribute('data-notation-engine','VexFlow 4.2.5');svg.setAttribute('preserveAspectRatio','xMidYMid meet');
  notes.forEach((note,i)=>{const group=host.querySelectorAll('.vf-stavenote')[i];if(group){group.setAttribute('data-staff-midi',String(answer[i]));group.setAttribute('data-note-y',String(note.getYs()[0]));group.setAttribute('data-stem-direction',String(note.getStemDirection()));}});
  const result=svg.outerHTML;if(cache.size>=100)cache.delete(cache.keys().next().value);cache.set(key,result);return result;
 }
