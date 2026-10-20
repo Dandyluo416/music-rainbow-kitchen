@@ -1,0 +1,227 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "roomsV22": {
+      "$code": {
+        ".write": "auth != null && ((!data.exists() && newData.child('meta/hostUid').val() == auth.uid && $code.matches(/^[A-HJ-NP-Z2-9]{6}$/)) || (data.child('meta/hostUid').val() == auth.uid && !newData.exists()))",
+        ".validate": "newData.hasChildren(['meta','members','seats','deviceSlots','public','authority'])",
+        "meta": {
+          ".read": "auth != null && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['hostUid','createdAt','expiresAt','config','version'])",
+          "hostUid": {
+            ".validate": "newData.isString() && newData.val() == auth.uid && !data.exists()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 10000 && newData.val() >= now - 60000"
+          },
+          "expiresAt": {
+            ".validate": "newData.isNumber() && newData.val() > now && newData.val() <= now + 7200000"
+          },
+          "version": {
+            ".validate": "newData.val() == '2.2'"
+          },
+          "config": {
+            ".validate": "newData.hasChildren(['players','mode','seconds','display'])",
+            "players": {
+              ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 1 && ((newData.parent().child('mode').val() == 'easy' && newData.val() <= 6) || (newData.parent().child('mode').val() == 'normal' && newData.val() <= 4) || (newData.parent().child('mode').val() == 'hard' && newData.val() <= 5))"
+            },
+            "mode": {
+              ".validate": "newData.val() == 'easy' || newData.val() == 'normal' || newData.val() == 'hard'"
+            },
+            "seconds": {
+              ".validate": "newData.val() == 120 || newData.val() == 180 || newData.val() == 300"
+            },
+            "display": {
+              ".validate": "newData.val() == 'sol' || newData.val() == 'note' || newData.val() == 'both'"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "members": {
+          ".read": "(auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid || auth != null && root.child('roomsV22').child($code).child('members').child(auth.uid).exists()) && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now && ((!data.exists() && root.child('roomsV22').child($code).child('public/phase').val() == 'lobby') || (data.exists() && newData.exists()) || (root.child('roomsV22').child($code).child('public/phase').val() == 'lobby' && !newData.exists()))",
+            ".validate": "newData.hasChildren(['device','count','first','second','joinedAt','readyRound']) && (!data.exists() || (newData.child('device').val() == data.child('device').val() && newData.child('count').val() == data.child('count').val() && newData.child('first').val() == data.child('first').val() && newData.child('second').val() == data.child('second').val() && newData.child('joinedAt').val() == data.child('joinedAt').val())) && newData.parent().parent().child('deviceSlots').child(newData.child('device').val() + '').val() == $uid && newData.parent().parent().child('seats').child(newData.child('first').val() + '').val() == $uid && (newData.child('count').val() == 1 || newData.parent().parent().child('seats').child(newData.child('second').val() + '').val() == $uid)",
+            "device": {
+              ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 0 && newData.val() <= 3"
+            },
+            "count": {
+              ".validate": "newData.val() == 1 || newData.val() == 2"
+            },
+            "first": {
+              ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 0 && newData.val() < newData.parent().parent().parent().child('meta/config/players').val()"
+            },
+            "second": {
+              ".validate": "newData.isNumber() && newData.val() % 1 == 0 && ((newData.parent().child('count').val() == 1 && newData.val() == -1) || (newData.parent().child('count').val() == 2 && newData.val() >= 0 && newData.val() < newData.parent().parent().parent().child('meta/config/players').val() && newData.val() != newData.parent().child('first').val()))"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber() && newData.val() <= now + 10000"
+            },
+            "readyRound": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "deviceSlots": {
+          ".read": "auth != null && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$device": {
+            ".write": "auth != null && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now && root.child('roomsV22').child($code).child('public/phase').val() == 'lobby' && ((!data.exists() && newData.val() == auth.uid) || data.val() == auth.uid)",
+            ".validate": "$device.matches(/^[0-3]$/) && newData.isString() && newData.val() == auth.uid && newData.parent().parent().child('members').child(auth.uid).child('device').val() + '' == $device"
+          }
+        },
+        "seats": {
+          ".read": "auth != null && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$seat": {
+            ".write": "auth != null && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now && root.child('roomsV22').child($code).child('public/phase').val() == 'lobby' && ((!data.exists() && newData.val() == auth.uid) || data.val() == auth.uid)",
+            ".validate": "$seat.matches(/^[0-5]$/) && newData.isString() && newData.val() == auth.uid && newData.parent().parent().child('members').child(auth.uid).exists() && ($seat == newData.parent().parent().child('members').child(auth.uid).child('first').val() + '' || $seat == newData.parent().parent().child('members').child(auth.uid).child('second').val() + '')"
+          }
+        },
+        "presence": {
+          ".read": "(auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid || auth != null && root.child('roomsV22').child($code).child('members').child(auth.uid).exists()) && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$uid": {
+            ".write": "auth != null && auth.uid == $uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now && root.child('roomsV22').child($code).child('members').child($uid).exists()",
+            ".validate": "newData.hasChildren(['connected','seenAt'])",
+            "connected": {
+              ".validate": "newData.isBoolean()"
+            },
+            "seenAt": {
+              ".validate": "newData.isNumber() && newData.val() <= now + 10000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "public": {
+          ".read": "(auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid || auth != null && root.child('roomsV22').child($code).child('members').child(auth.uid).exists()) && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".write": "auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['phase','roundId','revision','snapshot','hostBeat'])",
+          "phase": {
+            ".validate": "newData.val() == 'lobby' || newData.val() == 'prep' || newData.val() == 'playing' || newData.val() == 'ended'"
+          },
+          "roundId": {
+            ".validate": "newData.isString() && newData.val().length <= 80"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "snapshot": {
+            ".validate": "newData.isString() && newData.val().length <= 65536"
+          },
+          "hostBeat": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 10000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "authority": {
+          ".read": "auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".write": "auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['game','revision'])",
+          "game": {
+            ".validate": "newData.isString() && newData.val().length <= 65536"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "processed": {
+            "$uid": {
+              ".validate": "newData.hasChildren(['id','seq','result','revision'])",
+              "id": {
+                ".validate": "newData.isString() && newData.val().length <= 80"
+              },
+              "seq": {
+                ".validate": "newData.isNumber()"
+              },
+              "result": {
+                ".validate": "newData.isString() && newData.val().length <= 160"
+              },
+              "revision": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "requests": {
+          ".read": "auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$uid": {
+            ".read": "auth != null && auth.uid == $uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+            ".write": "(auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid && !newData.exists()) || (auth != null && auth.uid == $uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now && root.child('roomsV22').child($code).child('members').child($uid).exists() && !data.exists() && newData.exists())",
+            ".validate": "newData.hasChildren(['id','seq','uid','type','roundId','orderId','orderRevision','midi','createdAt'])",
+            "uid": {
+              ".validate": "newData.val() == auth.uid && newData.val() == $uid"
+            },
+            "id": {
+              ".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 80"
+            },
+            "seq": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() < 9007199254740991"
+            },
+            "type": {
+              ".validate": "newData.val() == 'prepare' || newData.val() == 'restart' || newData.val() == 'begin' || newData.val() == 'pause' || newData.val() == 'resume' || newData.val() == 'add' || newData.val() == 'undo' || newData.val() == 'clear' || newData.val() == 'hint' || newData.val() == 'listen' || newData.val() == 'serve'"
+            },
+            "roundId": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "orderId": {
+              ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() < 100000"
+            },
+            "orderRevision": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "midi": {
+              ".validate": "newData.isNumber() && (newData.val() == -1 || (newData.val() >= 57 && newData.val() <= 76 && newData.val() % 1 == 0))"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber() && newData.val() <= now + 10000 && newData.val() >= now - 30000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "receipts": {
+          "$uid": {
+            ".read": "(auth != null && auth.uid == $uid || auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid) && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+            ".write": "auth != null && root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid && root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+            ".validate": "newData.hasChildren(['id','seq','result','revision'])",
+            "id": {
+              ".validate": "newData.isString() && newData.val().length <= 80"
+            },
+            "seq": {
+              ".validate": "newData.isNumber()"
+            },
+            "result": {
+              ".validate": "newData.isString() && newData.val().length <= 160"
+            },
+            "revision": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
