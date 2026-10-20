@@ -1,0 +1,235 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>V2.2 多人連線設定</title><style>body{font-family:system-ui,sans-serif;max-width:820px;margin:auto;padding:24px;background:#fff9ea;color:#344345;line-height:1.8}h1{color:#247a70}button,a{font-size:18px}button{padding:16px;border:0;border-radius:12px;background:#247a70;color:white}textarea{box-sizing:border-box;width:100%;height:240px;font:12px monospace;margin-top:16px}li{margin-bottom:12px}.note{padding:16px;background:#f7e6b9;border-radius:12px}</style>
+<h1>音樂彩虹廚房 V2.2</h1><p>只需用 iPad Safari 完成一次設定。不需要安裝 Firebase 外掛。</p>
+<h2>1. 複製安全規則</h2><button id="copy">複製完整 JSON</button> <a href="v2.2-rules.json" download>下載 JSON</a><p id="status" role="status"></p><textarea id="rules" readonly aria-label="Firebase 完整安全規則">{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "roomsV22": {
+      "$code": {
+        ".write": "auth != null &amp;&amp; ((!data.exists() &amp;&amp; newData.child('meta/hostUid').val() == auth.uid &amp;&amp; $code.matches(/^[A-HJ-NP-Z2-9]{6}$/)) || (data.child('meta/hostUid').val() == auth.uid &amp;&amp; !newData.exists()))",
+        ".validate": "newData.hasChildren(['meta','members','seats','deviceSlots','public','authority'])",
+        "meta": {
+          ".read": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['hostUid','createdAt','expiresAt','config','version'])",
+          "hostUid": {
+            ".validate": "newData.isString() &amp;&amp; newData.val() == auth.uid &amp;&amp; !data.exists()"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber() &amp;&amp; newData.val() &lt;= now + 10000 &amp;&amp; newData.val() >= now - 60000"
+          },
+          "expiresAt": {
+            ".validate": "newData.isNumber() &amp;&amp; newData.val() > now &amp;&amp; newData.val() &lt;= now + 7200000"
+          },
+          "version": {
+            ".validate": "newData.val() == '2.2'"
+          },
+          "config": {
+            ".validate": "newData.hasChildren(['players','mode','seconds','display'])",
+            "players": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() % 1 == 0 &amp;&amp; newData.val() >= 1 &amp;&amp; ((newData.parent().child('mode').val() == 'easy' &amp;&amp; newData.val() &lt;= 6) || (newData.parent().child('mode').val() == 'normal' &amp;&amp; newData.val() &lt;= 4) || (newData.parent().child('mode').val() == 'hard' &amp;&amp; newData.val() &lt;= 5))"
+            },
+            "mode": {
+              ".validate": "newData.val() == 'easy' || newData.val() == 'normal' || newData.val() == 'hard'"
+            },
+            "seconds": {
+              ".validate": "newData.val() == 120 || newData.val() == 180 || newData.val() == 300"
+            },
+            "display": {
+              ".validate": "newData.val() == 'sol' || newData.val() == 'note' || newData.val() == 'both'"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "members": {
+          ".read": "(auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid || auth != null &amp;&amp; root.child('roomsV22').child($code).child('members').child(auth.uid).exists()) &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$uid": {
+            ".write": "auth != null &amp;&amp; auth.uid == $uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now &amp;&amp; ((!data.exists() &amp;&amp; root.child('roomsV22').child($code).child('public/phase').val() == 'lobby') || (data.exists() &amp;&amp; newData.exists()) || (root.child('roomsV22').child($code).child('public/phase').val() == 'lobby' &amp;&amp; !newData.exists()))",
+            ".validate": "newData.hasChildren(['device','count','first','second','joinedAt','readyRound']) &amp;&amp; (!data.exists() || (newData.child('device').val() == data.child('device').val() &amp;&amp; newData.child('count').val() == data.child('count').val() &amp;&amp; newData.child('first').val() == data.child('first').val() &amp;&amp; newData.child('second').val() == data.child('second').val() &amp;&amp; newData.child('joinedAt').val() == data.child('joinedAt').val())) &amp;&amp; newData.parent().parent().child('deviceSlots').child(newData.child('device').val() + '').val() == $uid &amp;&amp; newData.parent().parent().child('seats').child(newData.child('first').val() + '').val() == $uid &amp;&amp; (newData.child('count').val() == 1 || newData.parent().parent().child('seats').child(newData.child('second').val() + '').val() == $uid)",
+            "device": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() % 1 == 0 &amp;&amp; newData.val() >= 0 &amp;&amp; newData.val() &lt;= 3"
+            },
+            "count": {
+              ".validate": "newData.val() == 1 || newData.val() == 2"
+            },
+            "first": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() % 1 == 0 &amp;&amp; newData.val() >= 0 &amp;&amp; newData.val() &lt; newData.parent().parent().parent().child('meta/config/players').val()"
+            },
+            "second": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() % 1 == 0 &amp;&amp; ((newData.parent().child('count').val() == 1 &amp;&amp; newData.val() == -1) || (newData.parent().child('count').val() == 2 &amp;&amp; newData.val() >= 0 &amp;&amp; newData.val() &lt; newData.parent().parent().parent().child('meta/config/players').val() &amp;&amp; newData.val() != newData.parent().child('first').val()))"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() &lt;= now + 10000"
+            },
+            "readyRound": {
+              ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 80"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "deviceSlots": {
+          ".read": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$device": {
+            ".write": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now &amp;&amp; root.child('roomsV22').child($code).child('public/phase').val() == 'lobby' &amp;&amp; ((!data.exists() &amp;&amp; newData.val() == auth.uid) || data.val() == auth.uid)",
+            ".validate": "$device.matches(/^[0-3]$/) &amp;&amp; newData.isString() &amp;&amp; newData.val() == auth.uid &amp;&amp; newData.parent().parent().child('members').child(auth.uid).child('device').val() + '' == $device"
+          }
+        },
+        "seats": {
+          ".read": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$seat": {
+            ".write": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now &amp;&amp; root.child('roomsV22').child($code).child('public/phase').val() == 'lobby' &amp;&amp; ((!data.exists() &amp;&amp; newData.val() == auth.uid) || data.val() == auth.uid)",
+            ".validate": "$seat.matches(/^[0-5]$/) &amp;&amp; newData.isString() &amp;&amp; newData.val() == auth.uid &amp;&amp; newData.parent().parent().child('members').child(auth.uid).exists() &amp;&amp; ($seat == newData.parent().parent().child('members').child(auth.uid).child('first').val() + '' || $seat == newData.parent().parent().child('members').child(auth.uid).child('second').val() + '')"
+          }
+        },
+        "presence": {
+          ".read": "(auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid || auth != null &amp;&amp; root.child('roomsV22').child($code).child('members').child(auth.uid).exists()) &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$uid": {
+            ".write": "auth != null &amp;&amp; auth.uid == $uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now &amp;&amp; root.child('roomsV22').child($code).child('members').child($uid).exists()",
+            ".validate": "newData.hasChildren(['connected','seenAt'])",
+            "connected": {
+              ".validate": "newData.isBoolean()"
+            },
+            "seenAt": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() &lt;= now + 10000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "public": {
+          ".read": "(auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid || auth != null &amp;&amp; root.child('roomsV22').child($code).child('members').child(auth.uid).exists()) &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".write": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['phase','roundId','revision','snapshot','hostBeat'])",
+          "phase": {
+            ".validate": "newData.val() == 'lobby' || newData.val() == 'prep' || newData.val() == 'playing' || newData.val() == 'ended'"
+          },
+          "roundId": {
+            ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 80"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() &amp;&amp; newData.val() >= 0"
+          },
+          "snapshot": {
+            ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 65536"
+          },
+          "hostBeat": {
+            ".validate": "newData.isNumber() &amp;&amp; newData.val() &lt;= now + 10000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "authority": {
+          ".read": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".write": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          ".validate": "newData.hasChildren(['game','revision'])",
+          "game": {
+            ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 65536"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() &amp;&amp; newData.val() >= 0"
+          },
+          "processed": {
+            "$uid": {
+              ".validate": "newData.hasChildren(['id','seq','result','revision'])",
+              "id": {
+                ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 80"
+              },
+              "seq": {
+                ".validate": "newData.isNumber()"
+              },
+              "result": {
+                ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 160"
+              },
+              "revision": {
+                ".validate": "newData.isNumber()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "requests": {
+          ".read": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+          "$uid": {
+            ".read": "auth != null &amp;&amp; auth.uid == $uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+            ".write": "(auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid &amp;&amp; !newData.exists()) || (auth != null &amp;&amp; auth.uid == $uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now &amp;&amp; root.child('roomsV22').child($code).child('members').child($uid).exists() &amp;&amp; !data.exists() &amp;&amp; newData.exists())",
+            ".validate": "newData.hasChildren(['id','seq','uid','type','roundId','orderId','orderRevision','midi','createdAt'])",
+            "uid": {
+              ".validate": "newData.val() == auth.uid &amp;&amp; newData.val() == $uid"
+            },
+            "id": {
+              ".validate": "newData.isString() &amp;&amp; newData.val().length >= 8 &amp;&amp; newData.val().length &lt;= 80"
+            },
+            "seq": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() > 0 &amp;&amp; newData.val() &lt; 9007199254740991"
+            },
+            "type": {
+              ".validate": "newData.val() == 'prepare' || newData.val() == 'restart' || newData.val() == 'begin' || newData.val() == 'pause' || newData.val() == 'resume' || newData.val() == 'add' || newData.val() == 'undo' || newData.val() == 'clear' || newData.val() == 'hint' || newData.val() == 'listen' || newData.val() == 'serve'"
+            },
+            "roundId": {
+              ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 80"
+            },
+            "orderId": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() >= -1 &amp;&amp; newData.val() &lt; 100000"
+            },
+            "orderRevision": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() >= 0"
+            },
+            "midi": {
+              ".validate": "newData.isNumber() &amp;&amp; (newData.val() == -1 || (newData.val() >= 57 &amp;&amp; newData.val() &lt;= 76 &amp;&amp; newData.val() % 1 == 0))"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber() &amp;&amp; newData.val() &lt;= now + 10000 &amp;&amp; newData.val() >= now - 30000"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "receipts": {
+          "$uid": {
+            ".read": "(auth != null &amp;&amp; auth.uid == $uid || auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid) &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+            ".write": "auth != null &amp;&amp; root.child('roomsV22').child($code).child('meta/hostUid').val() == auth.uid &amp;&amp; root.child('roomsV22').child($code).child('meta/expiresAt').val() > now",
+            ".validate": "newData.hasChildren(['id','seq','result','revision'])",
+            "id": {
+              ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 80"
+            },
+            "seq": {
+              ".validate": "newData.isNumber()"
+            },
+            "result": {
+              ".validate": "newData.isString() &amp;&amp; newData.val().length &lt;= 160"
+            },
+            "revision": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
+</textarea>
+<h2>2. 到 Firebase 控制台發布</h2><ol><li>用 Safari 開啟 <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase 控制台</a>，選擇 <b>music-rainbow-kitchen-6c7fd</b>。</li><li>進入「建置 / Build」→「Realtime Database」→「規則 / Rules」。不是 Cloud Firestore。</li><li>確認資料庫網址為 <code>music-rainbow-kitchen-6c7fd-default-rtdb.asia-southeast1.firebasedatabase.app</code>。</li><li>先保留原有規則備份。將規則編輯器全選，貼上上方完整 JSON（包含最外層 rules），按「發布 / Publish」。若介面不完整，可從 Safari 網站設定選「要求桌面網站」。</li></ol>
+<p class="note">這份規則只開放 roomsV22 的受限匿名房間操作；其他路徑仍然鎖定。不要改成全域讀寫 true。匿名登入已啟用，不用重新設定。</p>
+<h2>3. 兩台裝置試玩</h2><ol><li>兩台裝置都開啟 <a href="v2.2-preview.html">V2.2 獨立測試版</a>。</li><li>第一台選總共 4 位小朋友、簡單、此裝置 2 位，建立房間。第二台選此裝置 2 位，輸入相同房間代碼加入。</li><li>房主開始備料，兩台都按準備完成，房主開始營業。每台只顯示自己負責的食材。</li><li>食材由各裝置試聽；訂單旋律及背景音樂由房主播放。背景音樂持續低音量播放，與遊戲聲音分開調整。</li></ol>
+<h2>使用限制</h2><p>房主也是參加者，不需要老師端。請讓房主的 Safari 保持前景；目前沒有自動轉移房主。重新整理原分頁可嘗試恢復座位，關閉分頁可能失去匿名身分。房間效期約兩小時；逾期會停止存取，但不是自動刪除資料。房主離開關閉房間時會刪除房間。無姓名、聊天或歷史排行榜。</p><p>這是合作遊戲，房主裝置負責裁判；不是防作弊競賽伺服器。正式單機版本不受這份測試版影響。</p>
+<script>document.getElementById('copy').onclick=async()=>{const t=document.getElementById('rules'),s=document.getElementById('status');try{await navigator.clipboard.writeText(t.value);s.textContent='已複製！請到 Firebase 規則編輯器貼上並發布。';}catch(e){t.focus();t.select();t.setSelectionRange(0,t.value.length);s.textContent='已選取全部規則，請長按選擇「複製」。';}};</script></html>
